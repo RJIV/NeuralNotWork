@@ -147,12 +147,20 @@ class gameAgent(ReflexCaptureAgent):
   we give you to get an idea of what an offensive agent might look like,
   but it is by no means the best or only way to build an offensive agent.
   """
-  def getFeatures(self, gameState, action):
-	if gameState.getScore() <= 0:
+  def getDesiredScore(self, gameState, action):
+     if gameState.isOnRedTeam(self.index):
+       return gameState.getScore()
+     else:
+       return gameState.getScore() * -1
+
+
+  def getFeatures(self, gameState, action):    
+	if self.getDesiredScore(gameState, action) <= 0:
 		attack = 1
 	else:
 		attack = 0
-	if attack == 1:
+
+ 	if attack == 1:
 		features = util.Counter()
 		successor = self.getSuccessor(gameState, action)
 
@@ -215,7 +223,7 @@ class gameAgent(ReflexCaptureAgent):
 		
   def getWeights(self, gameState, action):
 	#print(self.getScore(self))
-	if gameState.getScore() <= 0:
+	if self.getDesiredScore(gameState, action) <= 0:
 		attack = 1
 	else:
 		attack = 0
