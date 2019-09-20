@@ -39,7 +39,6 @@ def createTeam(firstIndex, secondIndex, isRed,
   team, initialized using firstIndex and secondIndex as their agent
   index numbers.  isRed is True if the red team is being created, and
   will be False if the blue team is being created.
-
   As a potentially helpful development aid, this function can take
   additional string-valued keyword arguments ("first" and "second" are
   such arguments in the case of this function), which will come from
@@ -155,79 +154,88 @@ class gameAgent(ReflexCaptureAgent):
 
 
   def getFeatures(self, gameState, action):    
-	if self.getDesiredScore(gameState, action) <= 0:
-		attack = 1
-	else:
-		attack = 0
+    if self.getDesiredScore(gameState, action) <= 0:
+     attack = 1
+    else:
+      attack = 0
 
- 	if attack == 1:
-		features = util.Counter()
-		successor = self.getSuccessor(gameState, action)
+    if attack == 1:
+      features = util.Counter()
+      successor = self.getSuccessor(gameState, action)
 
-		myState = successor.getAgentState(self.index)
-		myPos = myState.getPosition()
+      myState = successor.getAgentState(self.index)
+      myPos = myState.getPosition()
 
-		foodList = self.getFood(successor).asList()    
-		features['successorScore'] = -len(foodList)#self.getScore(successor)
+      foodList = self.getFood(successor).asList()    
+      features['successorScore'] = -len(foodList)#self.getScore(successor)
 
-		# Compute distance to the nearest food
-		if len(foodList) > 0: # This should always be True,  but better safe than sorry
-			myPos = successor.getAgentState(self.index).getPosition()
-			minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-			features['distanceToFood'] = minDistance
+      # Compute distance to the nearest food
+      if len(foodList) > 0: # This should always be True,  but better safe than sorry
+        myPos = successor.getAgentState(self.index).getPosition()
+        minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+        features['distanceToFood'] = minDistance
 
-			# Determine if the enemy is closer to you than they were last time
-			# and you are in their territory.
-			# Note: This behavior isn't perfect, and can force Pacman to cower 
-			# in a corner.  I leave it up to you to improve this behavior.
-			close_dist = 9999.0
-			if self.index == 1 and gameState.getAgentState(self.index).isPacman:
-			  opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-			  chasers = [p for p in opp_fut_state if p.getPosition() != None and not p.isPacman]
-			  if len(chasers) > 0:
-				close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
+        # Determine if the enemy is closer to you than they were last time
+        # and you are in their territory.
+        # Note: This behavior isn't perfect, and can force Pacman to cower 
+        # in a corner.  I leave it up to you to improve this behavior.
+        close_dist = 9999.0
+        if self.index == 1 and gameState.getAgentState(self.index).isPacman:
+          opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+          chasers = [p for p in opp_fut_state if p.getPosition() != None and not p.isPacman]
+          if len(chasers) > 0:
+            close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
 
-			  # View the action and close distance information for each 
-			  # possible move choice.
-			  print("Action: "+str(action))
-			  print("\t\t"+str(close_dist), sys.stderr)
+          # View the action and close distance information for each 
+          # possible move choice.
+          print("Action: "+str(action))
+          print("\t\t"+str(close_dist), sys.stderr)
 
-			features['fleeEnemy'] = 1.0/close_dist
+        features['fleeEnemy'] = 1.0/close_dist
 
-			return features
-		
-	else:
-		features = util.Counter()
-		successor = self.getSuccessor(gameState, action)
+        return features
+    
+    else:
+      features = util.Counter()
+      successor = self.getSuccessor(gameState, action)
 
-		myState = successor.getAgentState(self.index)
-		myPos = myState.getPosition()
+      myState = successor.getAgentState(self.index)
+      myPos = myState.getPosition()
+      mapDimensions = (gameState.data.layout.width, gameState.data.layout.height)
+      safePoint = (mapDimensions[0] / 2, mapDimensions[1] / 2)
+      distanceFromSafePoint = self.getMazeDistance(myPos, safePoint)
 
-		# Computes whether we're on defense (1) or offense (0)
-		features['onDefense'] = 1
-		if myState.isPacman: features['onDefense'] = 0
+      # Computes whether we're on defense (1) or offense (0)
+      features['onDefense'] = 1
 
-		# Computes distance to invaders we can see
-		enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-		invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-		features['numInvaders'] = len(invaders)
-		if len(invaders) > 0:
-		  dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-		  features['invaderDistance'] = min(dists)
+    if myState.isPacman: features['onDefense'] = 0
 
-		if action == Directions.STOP: features['stop'] = 1
-		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-		if action == rev: features['reverse'] = 1
+    # Computes distance to invaders we can see
+    enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+    invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+    features['numInvaders'] = len(invaders)
+    if len(invaders) > 0:
+      dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+      features['invaderDistance'] = min(dists)
+    else:
+      features['patrolCenter'] = 1* distanceFromSafePoint
+      print('Patrol', safePoint, distanceFromSafePoint)
 
-		return features
-		
+    if action == Directions.STOP: features['stop'] = 1
+    
+    rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+    
+    if action == rev: features['reverse'] = 1
+
+    return features
+    
   def getWeights(self, gameState, action):
-	#print(self.getScore(self))
-	if self.getDesiredScore(gameState, action) <= 0:
-		attack = 1
-	else:
-		attack = 0
-	if attack == 1:
-		return {'successorScore': 100, 'distanceToFood': -1, 'fleeEnemy': -100.0}
-	else:
-		return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+    #print(self.getScore(self))
+    if self.getDesiredScore(gameState, action) <= 0:
+      attack = 1
+    else:
+      attack = 0
+    if attack == 1:
+      return {'successorScore': 100, 'distanceToFood': -1, 'fleeEnemy': -100.0}
+    else:
+      return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2, 'patrolCenter': -1}
