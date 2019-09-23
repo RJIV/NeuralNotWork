@@ -1,4 +1,4 @@
-# baselineTeam.py
+# braindead.py
 # ---------------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -12,7 +12,7 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-# baselineTeam.py
+# braindead.py
 # ---------------
 # Licensing Information: Please do not distribute or publish solutions to this
 # project. You are free to use and extend these projects for educational
@@ -31,6 +31,10 @@ from util import nearestPoint
 #################
 # Team creation #
 #################
+#Johnathon Killeen
+#RJ Hamilton
+#Farid Karadsheh
+#Ryan Eisenbarth
 
 def createTeam(firstIndex, secondIndex, isRed,
                first = 'gameAgent', second = 'gameAgent'):
@@ -83,7 +87,8 @@ class ReflexCaptureAgent(CaptureAgent):
     #   print(bestActions, file=sys.stderr)
 
     foodLeft = len(self.getFood(gameState).asList())
-
+	
+	#Grab two pieces of food. This allows us to get our inital points
     if foodLeft <= 2 or gameState.getAgentState(self.index).numCarrying > 2:
       bestDist = 9999
       for action in actions:
@@ -142,9 +147,8 @@ class ReflexCaptureAgent(CaptureAgent):
 
 class gameAgent(ReflexCaptureAgent):
   """
-  A reflex agent that seeks food. This is an agent
-  we give you to get an idea of what an offensive agent might look like,
-  but it is by no means the best or only way to build an offensive agent.
+  A generic agent that is assigned to both of our units. It allows them to switch between offense
+  and defense based on the current game state
   """
   def getDesiredScore(self, gameState, action):
      if gameState.isOnRedTeam(self.index):
@@ -153,12 +157,14 @@ class gameAgent(ReflexCaptureAgent):
        return gameState.getScore() * -1
 
 
-  def getFeatures(self, gameState, action):    
+  def getFeatures(self, gameState, action):  
+	#Detects current score and assigns behavior based on game state
     if self.getDesiredScore(gameState, action) <= 0:
      attack = 1
     else:
       attack = 0
 
+	#Offense behavior when we are tied or behind
     if attack == 1:
       features = util.Counter()
       successor = self.getSuccessor(gameState, action)
@@ -177,8 +183,6 @@ class gameAgent(ReflexCaptureAgent):
 
         # Determine if the enemy is closer to you than they were last time
         # and you are in their territory.
-        # Note: This behavior isn't perfect, and can force Pacman to cower 
-        # in a corner.  I leave it up to you to improve this behavior.
         close_dist = 9999.0
         if self.index == 1 and gameState.getAgentState(self.index).isPacman:
           opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
@@ -195,6 +199,7 @@ class gameAgent(ReflexCaptureAgent):
 
         return features
     
+	#defensive behavior when ahead
     else:
       features = util.Counter()
       successor = self.getSuccessor(gameState, action)
