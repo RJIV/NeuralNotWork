@@ -1,4 +1,4 @@
-# baselineTeam.py
+# neuralNotwork.py
 # ---------------
 # Licensing Information:  You are free to use or extend these projects for
 # educational purposes provided that (1) you do not distribute or publish
@@ -12,13 +12,21 @@
 # Pieter Abbeel (pabbeel@cs.berkeley.edu).
 
 
-# baselineTeam.py
+# neuralNotwork.py
 # ---------------
 # Licensing Information: Please do not distribute or publish solutions to this
 # project. You are free to use and extend these projects for educational
 # purposes. The Pacman AI projects were developed at UC Berkeley, primarily by
 # John DeNero (denero@cs.berkeley.edu) and Dan Klein (klein@cs.berkeley.edu).
 # For more info, see http://inst.eecs.berkeley.edu/~cs188/sp09/pacman.html
+
+#Team NeualNotwork
+#---------------
+#R.J. Hamilton
+#Farid Karadsheh
+#Johnathon Killeen
+#Ryan Eisenbarth
+
 from __future__ import print_function
 from captureAgents import CaptureAgent
 import distanceCalculator
