@@ -251,7 +251,7 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
       attack = 0
     if attack == 1:
       return {'successorScore': 100, 'distanceToFood': -5, 'distanceToCapsule': -100,
-      'stop': -110, 'numCarrying': 10, 'ghostDistance': 1, 'risk': -4, 'reverse': -20, 'onOffense':1}
+      'stop': -100, 'numCarrying': 10, 'ghostDistance': 1, 'risk': -2, 'reverse': -20, 'onOffense':1}
     else:
       return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2, 'patrolCenter': -1}
 
