@@ -230,11 +230,14 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
       enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
       invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
       features['numInvaders'] = len(invaders)
-      if len(invaders) > 0:
+      if len(invaders) == 2:
+        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+        features['invaderDistance'] = dists[1]
+      elif len(invaders) > 0:
         dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
         features['invaderDistance'] = min(dists)
       else:
-        features['patrolCenter'] = 1* distanceFromSafePoint
+        features['patrolCenter'] = 1 * distanceFromSafePoint
 
       if action == Directions.STOP: features['stop'] = 1
       rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
@@ -283,7 +286,10 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
     enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
     invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
     features['numInvaders'] = len(invaders)
-    if len(invaders) > 0:
+    if len(invaders) == 2:
+        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+        features['invaderDistance'] = dists[0]
+    elif len(invaders) > 0:
       dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
       features['invaderDistance'] = min(dists)
     else:
