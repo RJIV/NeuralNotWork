@@ -33,7 +33,7 @@ from util import nearestPoint
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'gameAgent', second = 'gameAgent'):
+               first = 'OffensiveReflexAgent', second = 'DefensiveReflexAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -67,9 +67,6 @@ class ReflexCaptureAgent(CaptureAgent):
     Picks among the actions with the highest Q(s,a).
     """
     actions = gameState.getLegalActions(self.index)
-
-    # You can profile your evaluation time by uncommenting these lines
-    # start = time.time()
     values = [self.evaluate(gameState, a) for a in actions]
 
     maxValue = max(values)
@@ -106,13 +103,8 @@ class ReflexCaptureAgent(CaptureAgent):
     """
     Computes a linear combination of features and feature weights
     """
-
     features = self.getFeatures(gameState, action)
     weights = self.getWeights(gameState, action)
-
-    # if self.index == 1:
-      #print(str(features) + str(weights), file=sys.stderr)
-      # print(gameState.getAgentState(self.index)) # Print out a text representation of the world.
 
     return features * weights
 
@@ -133,73 +125,90 @@ class ReflexCaptureAgent(CaptureAgent):
     """
     return {'successorScore': 1.0}
 
-class gameAgent(ReflexCaptureAgent):
+class OffensiveReflexAgent(ReflexCaptureAgent):
   """
-  A reflex agent that seeks food. This is an agent
-  we give you to get an idea of what an offensive agent might look like,
-  but it is by no means the best or only way to build an offensive agent.
+  A reflex agent that prioitises the power capsule and seeks food.
+  Once this agent detects that its team is winning then the agent will
+  go on defense. The defensive tree is identical to the Defensive agent.
+  The offensive tree is defined here.
   """
-  def getDesiredScore(self, gameState, action):
-     if gameState.isOnRedTeam(self.index):
-       return gameState.getScore()
-     else:
-       return gameState.getScore() * -1
+  def getDesiredScore(self, gameState):
+    """
+    Given the current GameState and the calling agent, return an unsigned
+    integer representing the score.
+    """
+    if gameState.isOnRedTeam(self.index):
+      return gameState.getScore()
+    else:
+      return gameState.getScore() * -1
 
 
-  def getFeatures(self, gameState, action):    
-    if self.getDesiredScore(gameState, action) <= 0:
+  def getFeatures(self, gameState, action):   
+    features = util.Counter() 
+    successor = self.getSuccessor(gameState, action)
+
+    # Our agents state/data
+    myState = successor.getAgentState(self.index)
+    myPos = myState.getPosition()
+    isRed = gameState.isOnRedTeam(self.index)
+    isPacman = successor.getAgentState(self.index).isPacman
+
+    # Map dimensions and safepoint calculation
+    # The safepoint is the center of the map and where we return food.
+    mapDimensions = (gameState.data.layout.width, gameState.data.layout.height)
+    safePoint = (mapDimensions[0] / 2, mapDimensions[1] / 2)
+    distanceFromSafePoint = self.getMazeDistance(myPos, safePoint)
+
+    # Determine the location of my teammate
+    teamIndicies = gameState.getRedTeamIndices() if isRed else gameState.getBlueTeamIndices()
+    allyIndex = teamIndicies[teamIndicies.index(self.index) - 1]
+    allyDistance = self.getMazeDistance(myPos, successor.getAgentState(allyIndex).getPosition())
+
+    # If losing, then attack; otherwise, defend.
+    if self.getDesiredScore(gameState) <= 0:
      attack = 1
     else:
       attack = 0
 
+    # Offense tree
     if attack == 1:
-      features = util.Counter()
-      successor = self.getSuccessor(gameState, action)
-      myState = successor.getAgentState(self.index)
-      myPos = myState.getPosition()
-      isRed = gameState.isOnRedTeam(self.index)
-      iAmPacman = successor.getAgentState(self.index).isPacman
-      teamIndicies = gameState.getRedTeamIndices() if isRed else gameState.getBlueTeamIndices()
+      foodList = self.getFood(successor).asList()
+      features['successorScore'] = -len(foodList)
+      features['onOffense'] = 1
+      # Used to prioritizing picking up food as well as used in calculating risk.
+      features['numCarrying'] = gameState.getAgentState(self.index).numCarrying
 
-      mapDimensions = (gameState.data.layout.width, gameState.data.layout.height)
-      yAxis = mapDimensions[1] / 2
+      if not isPacman:
+        features['risk'] = 0
+      else:
+        features['risk'] = distanceFromSafePoint  * features['numCarrying']
 
+      # Determine the capsule location and calculate current distance from it.
       capsuleLocation = gameState.getBlueCapsules() if isRed else gameState.getRedCapsules()
       if len(capsuleLocation) > 0: 
-        cdist = self.getMazeDistance(myPos, capsuleLocation[0])
-        if cdist > 0:
-          features['distanceToCapsule'] = cdist
-        else: 
-          features['distanceToCapsule'] = 1
-
-          # Prevent excessive stopping
-      if action == Directions.STOP: features['stop'] = 1
-
-      # Failed attempt to assign regions for each of our pacman
-      if(myPos[1] < yAxis and teamIndicies[0] == self.index and iAmPacman):
-        if(action == Directions.NORTH):
-          features['northPriority'] = random.randint(0,2)
-          print("I need to move north", self.index, "teamIndex,", teamIndicies[0])
-
-      # if(myPos[1] > yAxis and teamIndicies[1] == self.index and iAmPacman):
-      #   if(action == Directions.SOUTH):
-      #     features['northPriority'] = random.randint(0,2)
-      #     print("---------I need to move south", self.index, "teamIndex,", teamIndicies[1])
+        features['distanceToCapsule'] = self.getMazeDistance(myPos, capsuleLocation[0])
+          # cdist = self.getMazeDistance(myPos, capsuleLocation[0])
+          # if cdist > 0:
+          # features['distanceToCapsule'] = cdist
+          # else: # Prevents divide by zero when picking up capsule
+            # features['distanceToCapsule'] = 1
 
 
-      foodList = self.getFood(successor).asList()    
-      features['successorScore'] = -len(foodList)#self.getScore(successor)
-
-      # Compute distance to the nearest food
+      # Compute distance to the nearest food.
       if len(foodList) > 0: # This should always be True,  but better safe than sorry
         myPos = successor.getAgentState(self.index).getPosition()
         minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
         features['distanceToFood'] = minDistance
 
+      # Find the closest enemy defender and evade.
+      enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+      ghosts = [a for a in enemies if not a.isPacman and a.getPosition() != None]
+      if len(ghosts) > 0:
+        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in ghosts]
+        features['ghostDistance'] = min(dists)
+
         # Determine if the enemy is closer to you than they were last time
-        # and you are in their territory.
-        # Note: This behavior isn't perfect, and can force Pacman to cower 
-        # in a corner.  I leave it up to you to improve this behavior.
+        # and you are in their territory. May cause cowering.
         close_dist = 9999.0
         if self.index == 1 and gameState.getAgentState(self.index).isPacman:
           opp_fut_state = [successor.getAgentState(i) for i in self.getOpponents(successor)]
@@ -207,32 +216,70 @@ class gameAgent(ReflexCaptureAgent):
           if len(chasers) > 0:
             close_dist = min([float(self.getMazeDistance(myPos, c.getPosition())) for c in chasers])
 
-          # View the action and close distance information for each 
-          # possible move choice.
-          # print("Action: "+str(action))
-          # print("\t\t"+str(close_dist), sys.stderr)
-
         features['fleeEnemy'] = 1.0/close_dist
-
         return features
     
+    # Defense tree.
     else:
-      features = util.Counter()
-      successor = self.getSuccessor(gameState, action)
-
-      myState = successor.getAgentState(self.index)
-      myPos = myState.getPosition() 
-      mapDimensions = (gameState.data.layout.width, gameState.data.layout.height)
-      safePoint = (mapDimensions[0] / 2), (mapDimensions[1] / 2)
-
-      distanceFromSafePoint = self.getMazeDistance(myPos, safePoint)
-
-      # Computes whether we're on defense (1) or offense (0)
+    # Computes whether we're on defense (1) or offense (0)
       features['onDefense'] = 1
+      if myState.isPacman: features['onDefense'] = 0
 
+      # Computes distance to invaders we can see. If no invaders are present, then
+      # return to the center.
+      enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+      invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+      features['numInvaders'] = len(invaders)
+      if len(invaders) > 0:
+        dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+        features['invaderDistance'] = min(dists)
+      else:
+        features['patrolCenter'] = 1* distanceFromSafePoint
+
+      if action == Directions.STOP: features['stop'] = 1
+      rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+      if action == rev: features['reverse'] = 1
+
+    return features
+    
+  def getWeights(self, gameState, action):
+    # Similar to what is seen above. The main difference is that the set of features
+    # that we return is based on whether our agent is attacking or not.
+    if self.getDesiredScore(gameState) <= 0:
+      attack = 1
+    else:
+      attack = 0
+    if attack == 1:
+      return {'successorScore': 100, 'distanceToFood': -5, 'distanceToCapsule': -100,
+      'stop': -110, 'numCarrying': 10, 'ghostDistance': 1, 'risk': -4, 'reverse': -20, 'onOffense':1}
+    else:
+      return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2, 'patrolCenter': -1}
+
+class DefensiveReflexAgent(ReflexCaptureAgent):
+  """
+  A defensive agent that waits for the opponent at the center. If an enemy pacman is within
+  visible range, then seek it out.
+  """
+  def getFeatures(self, gameState, action):   
+    features = util.Counter() 
+    successor = self.getSuccessor(gameState, action)
+    # Our agents state/data
+    myState = successor.getAgentState(self.index)
+    myPos = myState.getPosition()
+    isRed = gameState.isOnRedTeam(self.index)
+
+    # Map dimensions and safepoint calculation
+    # The safepoint is the center of the map and where we patrol.
+    mapDimensions = (gameState.data.layout.width, gameState.data.layout.height)
+    safePoint = (mapDimensions[0] / 2, mapDimensions[1] / 2)
+    distanceFromSafePoint = self.getMazeDistance(myPos, safePoint)
+
+    # Computes whether we're on defense (1) or offense (0)
+    features['onDefense'] = 1
     if myState.isPacman: features['onDefense'] = 0
 
-    # Computes distance to invaders we can see
+    # Computes distance to invaders we can see. If no invaders are present, then
+    # return to the center.
     enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
     invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
     features['numInvaders'] = len(invaders)
@@ -240,23 +287,14 @@ class gameAgent(ReflexCaptureAgent):
       dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
       features['invaderDistance'] = min(dists)
     else:
-      features['patrolCenter'] = 1* distanceFromSafePoint
+      features['patrolCenter'] = 1 * distanceFromSafePoint
 
     if action == Directions.STOP: features['stop'] = 1
-    
     rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-    
     if action == rev: features['reverse'] = 1
 
     return features
     
   def getWeights(self, gameState, action):
-    #print(self.getScore(self))
-    if self.getDesiredScore(gameState, action) <= 0:
-      attack = 1
-    else:
-      attack = 0
-    if attack == 1:
-      return {'successorScore': 100, 'distanceToFood': -1, 'fleeEnemy': -100.0, 'distanceToCapsule': -100, 'stop': -110, 'northPriority': 2}
-    else:
-      return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2, 'patrolCenter': -1}
+    return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2, 'patrolCenter': -1}
+
